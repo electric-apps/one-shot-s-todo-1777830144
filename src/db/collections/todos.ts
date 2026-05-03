@@ -2,6 +2,7 @@ import { createCollection } from "@tanstack/react-db"
 import { electricCollectionOptions } from "@tanstack/electric-db-collection"
 import { todoSelectSchema } from "../zod-schemas"
 import { absoluteApiUrl } from "@/lib/client-url"
+import { insertTodoFn, updateTodoFn, deleteTodoFn } from "@/server-fns/todos"
 
 export const todosCollection = createCollection(
 	electricCollectionOptions({
@@ -16,36 +17,18 @@ export const todosCollection = createCollection(
 		},
 		onInsert: async ({ transaction }) => {
 			const todo = transaction.mutations[0].modified
-			const res = await fetch("/api/todos", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(todo),
-			})
-			if (!res.ok) throw new Error(`Insert failed: ${res.status}`)
-			const { txid } = (await res.json()) as { txid: number }
-			return { txid }
+			const result = await insertTodoFn({ data: todo })
+			return { txid: result.txid }
 		},
 		onUpdate: async ({ transaction }) => {
-			const todo = transaction.mutations[0].modified
-			const res = await fetch("/api/todos", {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(todo),
-			})
-			if (!res.ok) throw new Error(`Update failed: ${res.status}`)
-			const { txid } = (await res.json()) as { txid: number }
-			return { txid }
+			const { id, text, completed } = transaction.mutations[0].modified
+			const result = await updateTodoFn({ data: { id, text, completed } })
+			return { txid: result.txid }
 		},
 		onDelete: async ({ transaction }) => {
-			const todo = transaction.mutations[0].original
-			const res = await fetch("/api/todos", {
-				method: "DELETE",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ id: todo.id }),
-			})
-			if (!res.ok) throw new Error(`Delete failed: ${res.status}`)
-			const { txid } = (await res.json()) as { txid: number }
-			return { txid }
+			const { id } = transaction.mutations[0].original
+			const result = await deleteTodoFn({ data: { id } })
+			return { txid: result.txid }
 		},
 	}),
 )
